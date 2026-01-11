@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Trophy, Users, Star, Skull, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Bot, User, Wifi, WifiOff, Copy, Check, Save, Upload, Undo2 } from 'lucide-react';
+import { Trophy, Users, Star, Skull, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Bot, User, Wifi, WifiOff, Copy, Check, Save, Upload, Undo2, Layers, Hand } from 'lucide-react';
 import Peer from 'peerjs';
 
 export default function BoardGame() {
@@ -119,6 +119,9 @@ export default function BoardGame() {
   const [myColor, setMyColor] = useState(null);
   const [copied, setCopied] = useState(false);
   const connectionRef = useRef(null);
+
+  // Mobile stack mode - allows selecting coins without Shift key
+  const [stackMode, setStackMode] = useState(false);
 
   const startGame = (numPlayers, cpuPlayers = {}) => {
     const selectedColors = numPlayers === 2 ? ['yellow', 'blue'] : allColors;
@@ -1152,8 +1155,8 @@ export default function BoardGame() {
       }
     }
 
-    // Ctrl+click or Shift+click to toggle selection for stacking (works anywhere)
-    if (event?.ctrlKey || event?.metaKey || event?.shiftKey) {
+    // Ctrl+click, Shift+click, or Stack Mode to toggle selection for stacking (works anywhere)
+    if (event?.ctrlKey || event?.metaKey || event?.shiftKey || stackMode) {
       if (selectedCoins.length > 0) {
         const firstSelectedPos = gameState[color][selectedCoins[0]].pos;
         if (coinPos !== firstSelectedPos) {
@@ -1713,46 +1716,47 @@ export default function BoardGame() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-4">
-      <div className="flex items-center gap-4 mb-6">
-        <h1 className="text-4xl font-bold text-white flex items-center gap-3">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-2 sm:p-4">
+      {/* Header - Responsive */}
+      <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 mb-4 sm:mb-6 w-full sm:w-auto">
+        <h1 className="text-2xl sm:text-4xl font-bold text-white flex items-center gap-2 sm:gap-3">
           Attha
           {onlineMode && (
-            <span className="flex items-center gap-2 text-lg bg-teal-500 px-3 py-1 rounded-full">
-              <Wifi size={16} />
+            <span className="flex items-center gap-1 sm:gap-2 text-sm sm:text-lg bg-teal-500 px-2 sm:px-3 py-1 rounded-full">
+              <Wifi size={14} className="sm:w-4 sm:h-4" />
               Online
               {myColor && <span className="capitalize">({myColor})</span>}
             </span>
           )}
-          {!onlineMode && ` - ${playerCount} Players`}
+          {!onlineMode && <span className="text-lg sm:text-4xl"> - {playerCount}P</span>}
         </h1>
-        <div className="flex gap-2">
+        <div className="flex gap-1 sm:gap-2 flex-wrap justify-center">
           {!onlineMode && (
             <>
               <button
                 onClick={undoMove}
                 disabled={undoHistory.length === 0}
-                className={`px-3 py-2 rounded-lg font-bold text-white transition text-sm flex items-center gap-1 ${
+                className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg font-bold text-white transition text-xs sm:text-sm flex items-center gap-1 ${
                   undoHistory.length > 0
                     ? 'bg-amber-600 hover:bg-amber-700'
                     : 'bg-gray-400 cursor-not-allowed'
                 }`}
                 title={`Undo (${undoHistory.length}/2)`}
               >
-                <Undo2 size={16} />
-                Undo ({undoHistory.length})
+                <Undo2 size={14} className="sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Undo ({undoHistory.length})</span>
               </button>
               <button
                 onClick={saveGame}
-                className="px-3 py-2 rounded-lg font-bold text-white bg-green-600 hover:bg-green-700 transition text-sm flex items-center gap-1"
+                className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg font-bold text-white bg-green-600 hover:bg-green-700 transition text-xs sm:text-sm flex items-center gap-1"
                 title="Save game"
               >
-                <Save size={16} />
-                Save
+                <Save size={14} className="sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Save</span>
               </button>
-              <label className="px-3 py-2 rounded-lg font-bold text-white bg-blue-600 hover:bg-blue-700 transition text-sm flex items-center gap-1 cursor-pointer">
-                <Upload size={16} />
-                Load
+              <label className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg font-bold text-white bg-blue-600 hover:bg-blue-700 transition text-xs sm:text-sm flex items-center gap-1 cursor-pointer">
+                <Upload size={14} className="sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Load</span>
                 <input
                   type="file"
                   accept=".json"
@@ -1764,9 +1768,9 @@ export default function BoardGame() {
           )}
           <button
             onClick={onlineMode ? leaveOnlineGame : () => setPlayerCount(null)}
-            className="px-4 py-2 rounded-lg font-bold text-white bg-gray-600 hover:bg-gray-700 transition text-sm"
+            className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg font-bold text-white bg-gray-600 hover:bg-gray-700 transition text-xs sm:text-sm"
           >
-            {onlineMode ? 'Leave Game' : 'New Game'}
+            {onlineMode ? 'Leave' : 'New'}
           </button>
         </div>
       </div>
@@ -1777,17 +1781,17 @@ export default function BoardGame() {
         </div>
       )}
 
-      {/* Main Game Area */}
-      <div className="flex gap-8 items-start">
+      {/* Main Game Area - Responsive layout */}
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-8 items-center lg:items-start">
         {/* Board with 3D decorative frame */}
-        <div className="relative">
+        <div className="relative flex-shrink-0">
           {/* Outer decorative border - 3D wooden frame effect */}
           <div className="absolute -inset-4 bg-gradient-to-br from-amber-600 via-amber-800 to-amber-950 rounded-2xl shadow-[0_8px_16px_rgba(0,0,0,0.4),0_4px_6px_rgba(0,0,0,0.3)]"></div>
           <div className="absolute -inset-3 bg-gradient-to-br from-amber-500 via-amber-700 to-amber-900 rounded-xl shadow-[inset_0_2px_4px_rgba(255,255,255,0.2),inset_0_-2px_4px_rgba(0,0,0,0.3)]"></div>
           <div className="absolute -inset-2 bg-gradient-to-br from-amber-600 via-amber-700 to-amber-800 rounded-lg"></div>
 
           {/* Board container */}
-          <div className="relative grid grid-cols-5 gap-1 bg-gradient-to-br from-amber-800 via-stone-700 to-amber-900 p-3 rounded-lg shadow-[inset_0_2px_8px_rgba(0,0,0,0.4)]">
+          <div className="relative grid grid-cols-5 gap-0.5 sm:gap-1 bg-gradient-to-br from-amber-800 via-stone-700 to-amber-900 p-2 sm:p-3 rounded-lg shadow-[inset_0_2px_8px_rgba(0,0,0,0.4)]">
             {Array(5).fill(0).map((_, row) =>
               Array(5).fill(0).map((_, col) => {
                 const coinsHere = getCoinsAtPosition(row, col);
@@ -1841,7 +1845,7 @@ export default function BoardGame() {
                 return (
                   <div
                     key={`${row}-${col}`}
-                    className={`w-20 h-20 rounded-lg flex items-center justify-center relative transition-all duration-200 ${
+                    className={`w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-lg flex items-center justify-center relative transition-all duration-200 ${
                       heaven
                         ? 'bg-gradient-to-br from-yellow-300 via-amber-400 to-orange-500 shadow-[0_4px_8px_rgba(0,0,0,0.3),inset_0_2px_4px_rgba(255,255,255,0.5),inset_0_-2px_4px_rgba(0,0,0,0.2)] border-2 border-yellow-200'
                         : home && homeColor
@@ -1995,9 +1999,9 @@ export default function BoardGame() {
         </div>
 
         {/* Right Panel - Dice and Info */}
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row lg:flex-col gap-4 w-full lg:w-auto">
           {/* Dice Section */}
-          <div className="bg-gradient-to-br from-white via-gray-50 to-gray-100 rounded-xl shadow-2xl p-6 w-72 border border-gray-200">
+          <div className="bg-gradient-to-br from-white via-gray-50 to-gray-100 rounded-xl shadow-2xl p-4 sm:p-6 w-full sm:flex-1 lg:w-72 border border-gray-200">
             <div className="text-2xl font-bold mb-2 text-center flex items-center justify-center gap-2" style={{ color: colors[currentPlayer] }}>
               {computerPlayers[colors[currentPlayer]] ? <Bot size={24} /> : onlineMode ? <Wifi size={24} /> : <User size={24} />}
               {colors[currentPlayer]?.toUpperCase()}'S TURN
@@ -2079,17 +2083,35 @@ export default function BoardGame() {
               )}
             </div>
 
-            <button
-              onClick={rollDice}
-              disabled={!canRoll || winner || computerPlayers[colors[currentPlayer]] || (onlineMode && colors[currentPlayer] !== myColor)}
-              className={`w-full px-4 py-3 rounded-lg font-bold text-white text-lg mb-4 transition-all duration-300 ease-out ${
-                !canRoll || winner || computerPlayers[colors[currentPlayer]] || (onlineMode && colors[currentPlayer] !== myColor)
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 hover:shadow-lg active:scale-95'
-              }`}
-            >
-              {onlineMode && colors[currentPlayer] !== myColor ? 'WAITING...' : canRoll ? 'ROLL DICE' : 'USE YOUR ROLLS'}
-            </button>
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={rollDice}
+                disabled={!canRoll || winner || computerPlayers[colors[currentPlayer]] || (onlineMode && colors[currentPlayer] !== myColor)}
+                className={`flex-1 px-4 py-3 rounded-lg font-bold text-white text-lg transition-all duration-300 ease-out ${
+                  !canRoll || winner || computerPlayers[colors[currentPlayer]] || (onlineMode && colors[currentPlayer] !== myColor)
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 hover:shadow-lg active:scale-95'
+                }`}
+              >
+                {onlineMode && colors[currentPlayer] !== myColor ? 'WAITING...' : canRoll ? 'ROLL DICE' : 'USE YOUR ROLLS'}
+              </button>
+              {/* Stack Mode Toggle - for mobile/touch devices */}
+              <button
+                onClick={() => {
+                  setStackMode(!stackMode);
+                  if (stackMode) setSelectedCoins([]);
+                }}
+                className={`px-3 py-3 rounded-lg font-bold text-sm transition-all duration-300 ease-out flex items-center gap-1 ${
+                  stackMode
+                    ? 'bg-purple-600 text-white ring-2 ring-purple-400'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+                title={stackMode ? 'Stack Mode ON - tap coins to select' : 'Stack Mode OFF'}
+              >
+                <Layers size={18} />
+                <span className="hidden sm:inline">{stackMode ? 'ON' : 'Stack'}</span>
+              </button>
+            </div>
 
             {selectedCoins.length > 0 && (
               <div className="text-center text-sm font-semibold text-blue-600 mb-2">
@@ -2135,8 +2157,8 @@ export default function BoardGame() {
             </div>
           </div>
 
-          {/* Rules Section */}
-          <div className="bg-gradient-to-br from-slate-800 via-slate-900 to-gray-900 rounded-xl shadow-2xl p-4 w-72 border border-slate-700">
+          {/* Rules Section - Hidden on small screens */}
+          <div className="bg-gradient-to-br from-slate-800 via-slate-900 to-gray-900 rounded-xl shadow-2xl p-4 w-full sm:flex-1 lg:w-72 border border-slate-700 hidden sm:block">
             <h3 className="text-sm font-bold text-amber-300 mb-2 flex items-center gap-2">
               <Star size={14} className="text-amber-400" /> How to Play
             </h3>
@@ -2144,8 +2166,8 @@ export default function BoardGame() {
               <div className="flex items-start gap-2"><span className="text-amber-400 font-bold">1.</span> Click a roll to select it</div>
               <div className="flex items-start gap-2"><span className="text-amber-400 font-bold">2.</span> Click a coin to move it</div>
               <div className="flex items-start gap-2"><span className="text-amber-400 font-bold">3.</span> Drag rolls together to merge</div>
-              <div className="flex items-start gap-2"><span className="text-amber-400 font-bold">4.</span> Shift+click coins to stack</div>
-              <div className="flex items-start gap-2"><span className="text-amber-400 font-bold">5.</span> Stacks auto-break at safe zones</div>
+              <div className="flex items-start gap-2"><span className="text-amber-400 font-bold">4.</span> Use Stack Mode on mobile</div>
+              <div className="flex items-start gap-2"><span className="text-amber-400 font-bold">5.</span> Stacks break at opponent's home</div>
               <div className="pt-2 border-t border-slate-600 mt-2 text-amber-200/80">
                 <span className="text-amber-400 font-semibold">Tip:</span> Inner circle coins can only move if no other valid moves exist!
               </div>
