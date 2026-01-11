@@ -1998,178 +1998,158 @@ export default function BoardGame() {
           </div>
         </div>
 
-        {/* Right Panel - Dice and Info */}
-        <div className="flex flex-col sm:flex-row lg:flex-col gap-4 w-full lg:w-auto">
-          {/* Dice Section */}
-          <div className="bg-gradient-to-br from-white via-gray-50 to-gray-100 rounded-xl shadow-2xl p-4 sm:p-6 w-full sm:flex-1 lg:w-72 border border-gray-200">
-            <div className="text-2xl font-bold mb-2 text-center flex items-center justify-center gap-2" style={{ color: colors[currentPlayer] }}>
-              {computerPlayers[colors[currentPlayer]] ? <Bot size={24} /> : onlineMode ? <Wifi size={24} /> : <User size={24} />}
-              {colors[currentPlayer]?.toUpperCase()}'S TURN
-            </div>
-            {onlineMode && (
-              <div className={`text-center text-sm mb-2 font-semibold ${colors[currentPlayer] === myColor ? 'text-green-600' : 'text-orange-500'}`}>
-                {colors[currentPlayer] === myColor ? 'Your turn!' : "Opponent's turn..."}
+        {/* Right Panel - Compact Dice Controls */}
+        <div className="flex flex-col gap-2 w-full lg:w-auto">
+          {/* Compact Dice Control Box - fits on one mobile screen */}
+          <div className="bg-gradient-to-br from-white via-gray-50 to-gray-100 rounded-xl shadow-lg p-3 w-full lg:w-64 border border-gray-200">
+            {/* Turn indicator - compact */}
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-lg font-bold flex items-center gap-1" style={{ color: colors[currentPlayer] }}>
+                {computerPlayers[colors[currentPlayer]] ? <Bot size={18} /> : onlineMode ? <Wifi size={18} /> : <User size={18} />}
+                <span className="capitalize">{colors[currentPlayer]}</span>
               </div>
-            )}
-            {computerPlayers[colors[currentPlayer]] && !onlineMode && (
-              <div className="text-center text-sm text-gray-500 mb-2 animate-pulse">
-                {isComputerThinking ? 'Computer is thinking...' : 'Computer player'}
-              </div>
-            )}
-
-            {/* Kill Status */}
-            <div className="mb-3 flex items-center justify-center gap-2">
-              <Skull size={16} className={hasKilled[colors[currentPlayer]] ? 'text-red-500' : 'text-gray-300'} />
-              <span className={`text-xs font-semibold ${hasKilled[colors[currentPlayer]] ? 'text-red-500' : 'text-gray-400'}`}>
-                {hasKilled[colors[currentPlayer]] ? 'Inner circle unlocked!' : 'Need kill to enter inner circle'}
-              </span>
-            </div>
-
-            {/* Unused Rolls - Fixed height container */}
-            <div className="mb-3 p-2 bg-gray-100 rounded min-h-[72px] transition-all duration-300">
-              <div className={`text-xs mb-1 transition-opacity duration-200 ${unusedRolls.length > 0 ? 'text-gray-500' : 'text-gray-400'}`}>
-                {unusedRolls.length > 0 ? 'Click to select, drag to merge:' : 'Roll the dice to get moves'}
-              </div>
-              <div className="flex gap-1 flex-wrap min-h-[36px] items-center">
-                {unusedRolls.length === 0 ? (
-                  <span className="text-gray-400 text-sm italic">No rolls yet</span>
-                ) : (
-                  unusedRolls.map((roll, i) => (
-                    <button
-                      key={i}
-                      draggable
-                      onClick={() => handleRollClick(i)}
-                      onDragStart={(e) => handleRollDragStart(e, i)}
-                      onDragOver={handleRollDragOver}
-                      onDrop={(e) => handleRollDrop(e, i)}
-                      onDragEnd={handleRollDragEnd}
-                      className={`px-3 py-2 rounded text-sm font-bold cursor-grab transition-all duration-200 ease-out ${
-                        selectedRollIndex === i
-                          ? 'bg-blue-500 text-white ring-2 ring-blue-700 scale-110'
-                          : draggedRollIndex === i
-                            ? 'bg-purple-400 text-white opacity-50'
-                            : draggedRollIndex !== null && draggedRollIndex !== i
-                              ? 'bg-purple-200 text-purple-800 ring-2 ring-purple-400'
-                              : roll === 4 || roll === 8
-                                ? 'bg-green-200 text-green-800 hover:bg-green-300'
-                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                      }`}
-                    >
-                      {roll}
-                    </button>
-                  ))
+              <div className="flex items-center gap-1">
+                <Skull size={14} className={hasKilled[colors[currentPlayer]] ? 'text-red-500' : 'text-gray-300'} />
+                {onlineMode && (
+                  <span className={`text-xs font-semibold ${colors[currentPlayer] === myColor ? 'text-green-600' : 'text-orange-500'}`}>
+                    {colors[currentPlayer] === myColor ? 'You' : 'Wait'}
+                  </span>
                 )}
               </div>
-              <div className={`text-xs text-red-500 mt-1 font-semibold transition-opacity duration-200 ${consecutiveBonusCount >= 2 ? 'opacity-100' : 'opacity-0'}`}>
-                Warning: {consecutiveBonusCount}/3 consecutive bonuses!
-              </div>
             </div>
 
-            {/* Dice Roll Display */}
-            <div className="mb-4 p-4 bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl border-2 border-amber-300 shadow-inner">
-              <div className="flex justify-center items-center gap-4">
-                <div className={`w-16 h-16 rounded-xl flex items-center justify-center text-3xl font-bold shadow-lg transition-all duration-300 ${
-                  diceResult
-                    ? (diceResult === 4 || diceResult === 8
-                        ? 'bg-gradient-to-br from-green-400 to-emerald-500 text-white'
-                        : 'bg-gradient-to-br from-amber-400 to-orange-500 text-white')
-                    : 'bg-gradient-to-br from-gray-200 to-gray-300 text-gray-400'
-                }`}>
-                  {diceResult || '?'}
-                </div>
+            {/* Dice display + Roll button row */}
+            <div className="flex items-center gap-2 mb-2">
+              {/* Dice result */}
+              <div className={`w-12 h-12 rounded-lg flex items-center justify-center text-2xl font-bold shadow-md flex-shrink-0 ${
+                diceResult
+                  ? (diceResult === 4 || diceResult === 8
+                      ? 'bg-gradient-to-br from-green-400 to-emerald-500 text-white'
+                      : 'bg-gradient-to-br from-amber-400 to-orange-500 text-white')
+                  : 'bg-gradient-to-br from-gray-200 to-gray-300 text-gray-400'
+              }`}>
+                {diceResult || '?'}
               </div>
-              {diceResult && (diceResult === 4 || diceResult === 8) && (
-                <div className="text-center text-xs text-green-600 font-semibold mt-2">Bonus roll!</div>
-              )}
-            </div>
 
-            <div className="flex gap-2 mb-4">
+              {/* Roll button */}
               <button
                 onClick={rollDice}
                 disabled={!canRoll || winner || computerPlayers[colors[currentPlayer]] || (onlineMode && colors[currentPlayer] !== myColor)}
-                className={`flex-1 px-4 py-3 rounded-lg font-bold text-white text-lg transition-all duration-300 ease-out ${
+                className={`flex-1 px-3 py-2 rounded-lg font-bold text-white text-sm transition-all ${
                   !canRoll || winner || computerPlayers[colors[currentPlayer]] || (onlineMode && colors[currentPlayer] !== myColor)
                     ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 hover:shadow-lg active:scale-95'
+                    : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 active:scale-95'
                 }`}
               >
-                {onlineMode && colors[currentPlayer] !== myColor ? 'WAITING...' : canRoll ? 'ROLL DICE' : 'USE YOUR ROLLS'}
+                {canRoll ? 'ROLL' : 'USE ROLLS'}
               </button>
-              {/* Stack Mode Toggle - for mobile/touch devices */}
+
+              {/* Stack mode toggle */}
               <button
                 onClick={() => {
                   setStackMode(!stackMode);
                   if (stackMode) setSelectedCoins([]);
                 }}
-                className={`px-3 py-3 rounded-lg font-bold text-sm transition-all duration-300 ease-out flex items-center gap-1 ${
+                className={`p-2 rounded-lg font-bold transition-all flex-shrink-0 ${
                   stackMode
                     ? 'bg-purple-600 text-white ring-2 ring-purple-400'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
                 }`}
-                title={stackMode ? 'Stack Mode ON - tap coins to select' : 'Stack Mode OFF'}
+                title={stackMode ? 'Stack Mode ON' : 'Stack Mode OFF'}
               >
                 <Layers size={18} />
-                <span className="hidden sm:inline">{stackMode ? 'ON' : 'Stack'}</span>
               </button>
             </div>
 
+            {/* Available rolls */}
+            <div className="flex gap-1 flex-wrap items-center min-h-[32px] mb-2 p-1.5 bg-gray-100 rounded">
+              {unusedRolls.length === 0 ? (
+                <span className="text-gray-400 text-xs">No rolls</span>
+              ) : (
+                unusedRolls.map((roll, i) => (
+                  <button
+                    key={i}
+                    draggable
+                    onClick={() => handleRollClick(i)}
+                    onDragStart={(e) => handleRollDragStart(e, i)}
+                    onDragOver={handleRollDragOver}
+                    onDrop={(e) => handleRollDrop(e, i)}
+                    onDragEnd={handleRollDragEnd}
+                    className={`px-2.5 py-1.5 rounded text-sm font-bold cursor-grab transition-all ${
+                      selectedRollIndex === i
+                        ? 'bg-blue-500 text-white ring-2 ring-blue-700 scale-110'
+                        : draggedRollIndex === i
+                          ? 'bg-purple-400 text-white opacity-50'
+                          : draggedRollIndex !== null && draggedRollIndex !== i
+                            ? 'bg-purple-200 text-purple-800 ring-2 ring-purple-400'
+                            : roll === 4 || roll === 8
+                              ? 'bg-green-200 text-green-800'
+                              : 'bg-gray-200 text-gray-700'
+                    }`}
+                  >
+                    {roll}
+                  </button>
+                ))
+              )}
+            </div>
+
+            {/* Selected coins / Stack controls */}
             {selectedCoins.length > 0 && (
-              <div className="text-center text-sm font-semibold text-blue-600 mb-2">
-                {selectedCoins.length} coin{selectedCoins.length > 1 ? 's' : ''} selected
-                {selectedRollIndex !== null && ` with roll ${unusedRolls[selectedRollIndex]}`}
-                <div className="flex gap-2 justify-center mt-1">
+              <div className="flex items-center justify-between gap-2 mb-2 p-1.5 bg-blue-50 rounded border border-blue-200">
+                <span className="text-xs font-semibold text-blue-700">{selectedCoins.length} selected</span>
+                <div className="flex gap-1">
                   {selectedCoins.length >= 2 && (
-                    <button
-                      onClick={formStack}
-                      className="px-3 py-1 bg-purple-500 text-white rounded text-xs font-bold hover:bg-purple-600 transition"
-                    >
-                      Stack ({selectedCoins.length})
+                    <button onClick={formStack} className="px-2 py-1 bg-purple-500 text-white rounded text-xs font-bold">
+                      Stack
                     </button>
                   )}
-                  <button
-                    onClick={() => { setSelectedCoins([]); setSelectedRollIndex(null); }}
-                    className="px-3 py-1 bg-red-500 text-white rounded text-xs font-bold hover:bg-red-600 transition"
-                  >
+                  <button onClick={() => { setSelectedCoins([]); setSelectedRollIndex(null); }} className="px-2 py-1 bg-red-500 text-white rounded text-xs font-bold">
                     Clear
                   </button>
                 </div>
               </div>
             )}
-            <div className="text-center text-sm font-semibold text-gray-700 transition-all duration-300 min-h-[40px]">{message}</div>
 
-            {/* Score display */}
-            <div className="mt-4 pt-4 border-t">
-              <h3 className="text-sm font-bold text-gray-600 mb-2">Coins in Heaven:</h3>
+            {/* Message */}
+            <div className="text-xs font-medium text-gray-600 text-center min-h-[16px]">{message}</div>
+
+            {/* Warning for consecutive bonuses */}
+            {consecutiveBonusCount >= 2 && (
+              <div className="text-xs text-red-500 text-center font-semibold mt-1">
+                Warning: {consecutiveBonusCount}/3 bonuses!
+              </div>
+            )}
+          </div>
+
+          {/* Score - Compact */}
+          <div className="bg-white/90 rounded-lg shadow p-2 w-full lg:w-64 border border-gray-200">
+            <div className="flex justify-between items-center">
               {colors.map(color => {
                 const inHeaven = gameState[color].filter(c => c.pos === HEAVEN_POS).length;
                 const isCurrentTurn = colors[currentPlayer] === color;
                 return (
-                  <div key={color} className={`flex justify-between text-sm ${isCurrentTurn ? 'font-bold' : ''}`} style={{ color }}>
-                    <span className="capitalize flex items-center gap-1">
-                      {computerPlayers[color] ? <Bot size={12} /> : <User size={12} />}
-                      {color}
-                      {hasKilled[color] && <Skull size={12} className="text-red-500" />}
-                    </span>
-                    <span>{inHeaven}/4</span>
+                  <div key={color} className={`flex flex-col items-center px-2 ${isCurrentTurn ? 'font-bold' : ''}`}>
+                    <div className={`w-4 h-4 rounded-full ${color === 'yellow' ? 'bg-yellow-500' : color === 'green' ? 'bg-green-500' : color === 'blue' ? 'bg-blue-500' : 'bg-red-500'}`}></div>
+                    <span className="text-xs mt-0.5">{inHeaven}/4</span>
+                    {hasKilled[color] && <Skull size={10} className="text-red-500" />}
                   </div>
                 );
               })}
             </div>
           </div>
 
-          {/* Rules Section - Hidden on small screens */}
-          <div className="bg-gradient-to-br from-slate-800 via-slate-900 to-gray-900 rounded-xl shadow-2xl p-4 w-full sm:flex-1 lg:w-72 border border-slate-700 hidden sm:block">
-            <h3 className="text-sm font-bold text-amber-300 mb-2 flex items-center gap-2">
-              <Star size={14} className="text-amber-400" /> How to Play
+          {/* Rules Section - Only on larger screens */}
+          <div className="bg-gradient-to-br from-slate-800 via-slate-900 to-gray-900 rounded-lg shadow p-3 w-full lg:w-64 border border-slate-700 hidden lg:block">
+            <h3 className="text-xs font-bold text-amber-300 mb-1.5 flex items-center gap-1">
+              <Star size={12} className="text-amber-400" /> How to Play
             </h3>
-            <div className="text-xs text-gray-300 space-y-1.5">
-              <div className="flex items-start gap-2"><span className="text-amber-400 font-bold">1.</span> Click a roll to select it</div>
-              <div className="flex items-start gap-2"><span className="text-amber-400 font-bold">2.</span> Click a coin to move it</div>
-              <div className="flex items-start gap-2"><span className="text-amber-400 font-bold">3.</span> Drag rolls together to merge</div>
-              <div className="flex items-start gap-2"><span className="text-amber-400 font-bold">4.</span> Use Stack Mode on mobile</div>
-              <div className="flex items-start gap-2"><span className="text-amber-400 font-bold">5.</span> Stacks break at opponent's home</div>
-              <div className="pt-2 border-t border-slate-600 mt-2 text-amber-200/80">
-                <span className="text-amber-400 font-semibold">Tip:</span> Inner circle coins can only move if no other valid moves exist!
+            <div className="text-[10px] text-gray-300 space-y-1">
+              <div>1. Click roll to select, click coin to move</div>
+              <div>2. Drag rolls together to merge</div>
+              <div>3. Use Stack button on mobile</div>
+              <div>4. Capture to unlock inner circle</div>
+              <div className="pt-1 border-t border-slate-600 text-amber-200/80">
+                Tip: Inner circle only moves if no other moves!
               </div>
             </div>
           </div>
