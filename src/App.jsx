@@ -1716,82 +1716,162 @@ export default function BoardGame() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-2 sm:p-4">
-      {/* Header - Responsive */}
-      <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 mb-4 sm:mb-6 w-full sm:w-auto">
-        <h1 className="text-2xl sm:text-4xl font-bold text-white flex items-center gap-2 sm:gap-3">
+    <div className="flex flex-col items-center min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-1 sm:p-4">
+      {/* Header - Very compact on mobile */}
+      <div className="flex items-center justify-between w-full max-w-sm lg:max-w-none lg:justify-center gap-2 mb-2 sm:mb-4">
+        <h1 className="text-lg sm:text-4xl font-bold text-white flex items-center gap-1 sm:gap-3">
           Attha
           {onlineMode && (
-            <span className="flex items-center gap-1 sm:gap-2 text-sm sm:text-lg bg-teal-500 px-2 sm:px-3 py-1 rounded-full">
-              <Wifi size={14} className="sm:w-4 sm:h-4" />
-              Online
-              {myColor && <span className="capitalize">({myColor})</span>}
+            <span className="flex items-center gap-1 text-[10px] sm:text-lg bg-teal-500 px-1.5 sm:px-3 py-0.5 sm:py-1 rounded-full">
+              <Wifi size={10} className="sm:w-4 sm:h-4" />
+              {myColor && <span className="capitalize">{myColor}</span>}
             </span>
           )}
-          {!onlineMode && <span className="text-lg sm:text-4xl"> - {playerCount}P</span>}
+          {!onlineMode && <span className="text-sm sm:text-4xl">-{playerCount}P</span>}
         </h1>
-        <div className="flex gap-1 sm:gap-2 flex-wrap justify-center">
+        <div className="flex gap-1">
           {!onlineMode && (
             <>
               <button
                 onClick={undoMove}
                 disabled={undoHistory.length === 0}
-                className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg font-bold text-white transition text-xs sm:text-sm flex items-center gap-1 ${
-                  undoHistory.length > 0
-                    ? 'bg-amber-600 hover:bg-amber-700'
-                    : 'bg-gray-400 cursor-not-allowed'
+                className={`p-1.5 sm:px-3 sm:py-2 rounded-lg font-bold text-white transition text-xs ${
+                  undoHistory.length > 0 ? 'bg-amber-600' : 'bg-gray-400'
                 }`}
-                title={`Undo (${undoHistory.length}/2)`}
+                title="Undo"
               >
-                <Undo2 size={14} className="sm:w-4 sm:h-4" />
-                <span className="hidden sm:inline">Undo ({undoHistory.length})</span>
+                <Undo2 size={14} />
               </button>
-              <button
-                onClick={saveGame}
-                className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg font-bold text-white bg-green-600 hover:bg-green-700 transition text-xs sm:text-sm flex items-center gap-1"
-                title="Save game"
-              >
-                <Save size={14} className="sm:w-4 sm:h-4" />
-                <span className="hidden sm:inline">Save</span>
+              <button onClick={saveGame} className="p-1.5 sm:px-3 sm:py-2 rounded-lg font-bold text-white bg-green-600 text-xs" title="Save">
+                <Save size={14} />
               </button>
-              <label className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg font-bold text-white bg-blue-600 hover:bg-blue-700 transition text-xs sm:text-sm flex items-center gap-1 cursor-pointer">
-                <Upload size={14} className="sm:w-4 sm:h-4" />
-                <span className="hidden sm:inline">Load</span>
-                <input
-                  type="file"
-                  accept=".json"
-                  onChange={handleFileLoad}
-                  className="hidden"
-                />
+              <label className="p-1.5 sm:px-3 sm:py-2 rounded-lg font-bold text-white bg-blue-600 text-xs cursor-pointer" title="Load">
+                <Upload size={14} />
+                <input type="file" accept=".json" onChange={handleFileLoad} className="hidden" />
               </label>
             </>
           )}
           <button
             onClick={onlineMode ? leaveOnlineGame : () => setPlayerCount(null)}
-            className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg font-bold text-white bg-gray-600 hover:bg-gray-700 transition text-xs sm:text-sm"
+            className="p-1.5 sm:px-4 sm:py-2 rounded-lg font-bold text-white bg-gray-600 text-xs"
           >
-            {onlineMode ? 'Leave' : 'New'}
+            <span className="sm:hidden">X</span>
+            <span className="hidden sm:inline">{onlineMode ? 'Leave' : 'New'}</span>
           </button>
         </div>
       </div>
 
       {winner && (
-        <div className="bg-yellow-400 text-yellow-900 px-8 py-4 rounded-lg mb-4 text-2xl font-bold animate-pulse">
+        <div className="bg-yellow-400 text-yellow-900 px-4 py-2 sm:px-8 sm:py-4 rounded-lg mb-2 sm:mb-4 text-lg sm:text-2xl font-bold animate-pulse">
           {winner.toUpperCase()} WINS!
         </div>
       )}
 
-      {/* Main Game Area - Responsive layout */}
-      <div className="flex flex-col lg:flex-row gap-4 lg:gap-8 items-center lg:items-start">
+      {/* Main Game Area - Mobile: controls on top, board below */}
+      <div className="flex flex-col lg:flex-row gap-2 lg:gap-6 items-center lg:items-start w-full max-w-[100vw] overflow-hidden">
+        {/* Mobile: Controls FIRST (above board) */}
+        <div className="lg:hidden w-full max-w-sm order-first">
+          {/* Compact Dice Control Box for Mobile */}
+          <div className="bg-gradient-to-br from-white via-gray-50 to-gray-100 rounded-xl shadow-lg p-2 border border-gray-200">
+            {/* Turn + Dice + Roll in one row */}
+            <div className="flex items-center gap-2">
+              {/* Turn indicator */}
+              <div className="text-sm font-bold flex items-center gap-1 flex-shrink-0" style={{ color: colors[currentPlayer] }}>
+                <span className="capitalize">{colors[currentPlayer]}</span>
+                <Skull size={12} className={hasKilled[colors[currentPlayer]] ? 'text-red-500' : 'text-gray-300'} />
+              </div>
+
+              {/* Dice result */}
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl font-bold shadow flex-shrink-0 ${
+                diceResult
+                  ? (diceResult === 4 || diceResult === 8
+                      ? 'bg-gradient-to-br from-green-400 to-emerald-500 text-white'
+                      : 'bg-gradient-to-br from-amber-400 to-orange-500 text-white')
+                  : 'bg-gradient-to-br from-gray-200 to-gray-300 text-gray-400'
+              }`}>
+                {diceResult || '?'}
+              </div>
+
+              {/* Roll button */}
+              <button
+                onClick={rollDice}
+                disabled={!canRoll || winner || computerPlayers[colors[currentPlayer]] || (onlineMode && colors[currentPlayer] !== myColor)}
+                className={`flex-1 px-2 py-2 rounded-lg font-bold text-white text-sm ${
+                  !canRoll || winner || computerPlayers[colors[currentPlayer]] || (onlineMode && colors[currentPlayer] !== myColor)
+                    ? 'bg-gray-400'
+                    : 'bg-gradient-to-r from-green-500 to-emerald-600 active:scale-95'
+                }`}
+              >
+                {canRoll ? 'ROLL' : 'USE'}
+              </button>
+
+              {/* Stack mode */}
+              <button
+                onClick={() => { setStackMode(!stackMode); if (stackMode) setSelectedCoins([]); }}
+                className={`p-2 rounded-lg flex-shrink-0 ${stackMode ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-600'}`}
+              >
+                <Layers size={16} />
+              </button>
+            </div>
+
+            {/* Rolls row */}
+            <div className="flex gap-1 items-center mt-2 p-1 bg-gray-100 rounded min-h-[28px]">
+              {unusedRolls.length === 0 ? (
+                <span className="text-gray-400 text-xs">Tap ROLL</span>
+              ) : (
+                unusedRolls.map((roll, i) => (
+                  <button
+                    key={i}
+                    onClick={() => handleRollClick(i)}
+                    className={`px-2 py-1 rounded text-xs font-bold ${
+                      selectedRollIndex === i
+                        ? 'bg-blue-500 text-white scale-110'
+                        : roll === 4 || roll === 8
+                          ? 'bg-green-200 text-green-800'
+                          : 'bg-gray-200 text-gray-700'
+                    }`}
+                  >
+                    {roll}
+                  </button>
+                ))
+              )}
+              {selectedCoins.length > 0 && (
+                <div className="ml-auto flex gap-1">
+                  {selectedCoins.length >= 2 && (
+                    <button onClick={formStack} className="px-2 py-1 bg-purple-500 text-white rounded text-xs font-bold">Stack</button>
+                  )}
+                  <button onClick={() => { setSelectedCoins([]); setSelectedRollIndex(null); }} className="px-2 py-1 bg-red-500 text-white rounded text-xs font-bold">X</button>
+                </div>
+              )}
+            </div>
+
+            {/* Message - very compact */}
+            {message && <div className="text-[10px] text-gray-600 text-center mt-1 truncate">{message}</div>}
+          </div>
+
+          {/* Score bar */}
+          <div className="flex justify-around items-center mt-1 bg-white/80 rounded p-1">
+            {colors.map(color => {
+              const inHeaven = gameState[color].filter(c => c.pos === HEAVEN_POS).length;
+              return (
+                <div key={color} className={`flex items-center gap-1 ${colors[currentPlayer] === color ? 'font-bold' : ''}`}>
+                  <div className={`w-3 h-3 rounded-full ${color === 'yellow' ? 'bg-yellow-500' : color === 'green' ? 'bg-green-500' : color === 'blue' ? 'bg-blue-500' : 'bg-red-500'}`}></div>
+                  <span className="text-[10px]">{inHeaven}/4</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Board with 3D decorative frame */}
         <div className="relative flex-shrink-0">
-          {/* Outer decorative border - 3D wooden frame effect */}
-          <div className="absolute -inset-4 bg-gradient-to-br from-amber-600 via-amber-800 to-amber-950 rounded-2xl shadow-[0_8px_16px_rgba(0,0,0,0.4),0_4px_6px_rgba(0,0,0,0.3)]"></div>
-          <div className="absolute -inset-3 bg-gradient-to-br from-amber-500 via-amber-700 to-amber-900 rounded-xl shadow-[inset_0_2px_4px_rgba(255,255,255,0.2),inset_0_-2px_4px_rgba(0,0,0,0.3)]"></div>
-          <div className="absolute -inset-2 bg-gradient-to-br from-amber-600 via-amber-700 to-amber-800 rounded-lg"></div>
+          {/* Outer decorative border - smaller on mobile */}
+          <div className="absolute -inset-2 sm:-inset-4 bg-gradient-to-br from-amber-600 via-amber-800 to-amber-950 rounded-xl sm:rounded-2xl shadow-[0_4px_8px_rgba(0,0,0,0.3)]"></div>
+          <div className="absolute -inset-1.5 sm:-inset-3 bg-gradient-to-br from-amber-500 via-amber-700 to-amber-900 rounded-lg sm:rounded-xl"></div>
+          <div className="absolute -inset-1 sm:-inset-2 bg-gradient-to-br from-amber-600 via-amber-700 to-amber-800 rounded-lg"></div>
 
           {/* Board container */}
-          <div className="relative grid grid-cols-5 gap-0.5 sm:gap-1 bg-gradient-to-br from-amber-800 via-stone-700 to-amber-900 p-2 sm:p-3 rounded-lg shadow-[inset_0_2px_8px_rgba(0,0,0,0.4)]">
+          <div className="relative grid grid-cols-5 gap-0.5 bg-gradient-to-br from-amber-800 via-stone-700 to-amber-900 p-1 sm:p-2 md:p-3 rounded-lg shadow-[inset_0_2px_8px_rgba(0,0,0,0.4)]">
             {Array(5).fill(0).map((_, row) =>
               Array(5).fill(0).map((_, col) => {
                 const coinsHere = getCoinsAtPosition(row, col);
@@ -1845,7 +1925,7 @@ export default function BoardGame() {
                 return (
                   <div
                     key={`${row}-${col}`}
-                    className={`w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-lg flex items-center justify-center relative transition-all duration-200 ${
+                    className={`w-[52px] h-[52px] sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-md sm:rounded-lg flex items-center justify-center relative transition-all duration-200 ${
                       heaven
                         ? 'bg-gradient-to-br from-yellow-300 via-amber-400 to-orange-500 shadow-[0_4px_8px_rgba(0,0,0,0.3),inset_0_2px_4px_rgba(255,255,255,0.5),inset_0_-2px_4px_rgba(0,0,0,0.2)] border-2 border-yellow-200'
                         : home && homeColor
@@ -1998,10 +2078,10 @@ export default function BoardGame() {
           </div>
         </div>
 
-        {/* Right Panel - Compact Dice Controls */}
-        <div className="flex flex-col gap-2 w-full lg:w-auto">
-          {/* Compact Dice Control Box - fits on one mobile screen */}
-          <div className="bg-gradient-to-br from-white via-gray-50 to-gray-100 rounded-xl shadow-lg p-3 w-full lg:w-64 border border-gray-200">
+        {/* Right Panel - Desktop Only (hidden on mobile, shown above board instead) */}
+        <div className="hidden lg:flex flex-col gap-2 w-auto">
+          {/* Desktop Dice Control Box */}
+          <div className="bg-gradient-to-br from-white via-gray-50 to-gray-100 rounded-xl shadow-lg p-3 w-64 border border-gray-200">
             {/* Turn indicator - compact */}
             <div className="flex items-center justify-between mb-2">
               <div className="text-lg font-bold flex items-center gap-1" style={{ color: colors[currentPlayer] }}>
