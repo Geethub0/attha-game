@@ -1390,9 +1390,15 @@ export default function BoardGame() {
             rollDice();
           }, 300);
         } else {
+          // No valid moves and can't roll - pass turn
           setIsComputerThinking(false);
+          setTimeout(() => nextTurn(), 300);
         }
       }
+    } else if (!canRoll) {
+      // No rolls and can't roll - pass turn
+      setIsComputerThinking(false);
+      setTimeout(() => nextTurn(), 300);
     }
   };
 
