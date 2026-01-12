@@ -359,7 +359,14 @@ export default function BoardGame() {
 
     try {
       const newPeer = new Peer(`attha-${code}`, {
-        debug: 2
+        debug: 2,
+        config: {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' }
+          ]
+        }
       });
       console.log('Peer object created');
 
@@ -441,7 +448,16 @@ export default function BoardGame() {
     setMyColor('blue'); // Guest is always blue
 
     try {
-      const newPeer = new Peer();
+      const newPeer = new Peer(undefined, {
+        debug: 2,
+        config: {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' }
+          ]
+        }
+      });
       console.log('Guest peer object created');
 
     // Set a timeout for connection
