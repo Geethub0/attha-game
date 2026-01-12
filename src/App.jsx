@@ -131,6 +131,10 @@ export default function BoardGame() {
   // Mobile stack mode - allows selecting coins without Shift key
   const [stackMode, setStackMode] = useState(false);
 
+  // Mobile coin management - selected coin from panel
+  const [mobileCoinSelected, setMobileCoinSelected] = useState(null); // { coinIndex, isStack }
+  const [mobileDestination, setMobileDestination] = useState(null); // position to move to
+
   const startGame = (numPlayers, cpuPlayers = {}) => {
     const selectedColors = numPlayers === 2 ? ['yellow', 'blue'] : allColors;
     setPlayerCount(numPlayers);
@@ -851,6 +855,50 @@ export default function BoardGame() {
     const coinsAtPos = getAllCoinsAtPosition(row, col);
     const uniqueColors = new Set(coinsAtPos.map(c => c.color));
     return uniqueColors.size > 1;
+  };
+
+  // Get valid destination for a coin with the selected roll (for mobile UI)
+  const getValidDestination = (color, coinIndex, rollValue, numCoins = 1) => {
+    const coin = gameState[color][coinIndex];
+    const currentPos = coin.pos;
+
+    // Check if roll divides evenly for stacks
+    if (numCoins > 1 && rollValue % numCoins !== 0) return null;
+
+    const blocksToMove = numCoins > 1 ? rollValue / numCoins : rollValue;
+
+    // Leaving home
+    if (currentPos === -1) {
+      if (!hasStarted[color] && ![1, 4, 8].includes(rollValue)) return null;
+      const newPos = blocksToMove - 1;
+      if (newPos >= INNER_CIRCLE_START && !hasKilled[color]) return null;
+      return newPos;
+    }
+
+    // On board
+    let newPos = currentPos + blocksToMove;
+
+    // Inner circle wrap
+    if (newPos > HEAVEN_POS && currentPos >= INNER_CIRCLE_START) {
+      newPos = INNER_CIRCLE_START + ((currentPos - INNER_CIRCLE_START + blocksToMove) % 8);
+    } else if (newPos > HEAVEN_POS) {
+      return null; // Can't overshoot
+    }
+
+    // Inner circle restriction
+    if (currentPos < INNER_CIRCLE_START && newPos >= INNER_CIRCLE_START && !hasKilled[color]) {
+      return null;
+    }
+
+    return newPos;
+  };
+
+  // Get coin status text for mobile panel
+  const getCoinStatus = (color, coinIndex) => {
+    const coin = gameState[color][coinIndex];
+    if (coin.pos === -1) return 'Home';
+    if (coin.pos === HEAVEN_POS) return 'Heaven';
+    return `Pos ${coin.pos + 1}`;
   };
 
   // State for drag-to-merge rolls
@@ -1846,9 +1894,9 @@ export default function BoardGame() {
   };
 
   return (
-    <div className="flex flex-col items-center min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-1 sm:p-4">
+    <div className="flex flex-col items-center min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-1 sm:p-4">
       {/* Header - Very compact on mobile */}
-      <div className="flex items-center justify-between w-full max-w-sm lg:max-w-none lg:justify-center gap-2 mb-2 sm:mb-4">
+      <div className="flex items-center justify-between w-full px-1 lg:max-w-none lg:justify-center gap-1 sm:gap-2 mb-1 sm:mb-4">
         <h1 className="text-lg sm:text-4xl font-bold text-white flex items-center gap-1 sm:gap-3">
           Attha
           {onlineMode && (
@@ -1897,111 +1945,18 @@ export default function BoardGame() {
         </div>
       )}
 
-      {/* Main Game Area - Mobile: controls on top, board below */}
-      <div className="flex flex-col lg:flex-row gap-2 lg:gap-6 items-center lg:items-start w-full max-w-[100vw] overflow-hidden">
-        {/* Mobile: Controls FIRST (above board) */}
-        <div className="lg:hidden w-full max-w-sm order-first">
-          {/* Compact Dice Control Box for Mobile */}
-          <div className="bg-gradient-to-br from-white via-gray-50 to-gray-100 rounded-xl shadow-lg p-2 border border-gray-200">
-            {/* Turn + Dice + Roll in one row */}
-            <div className="flex items-center gap-2">
-              {/* Turn indicator */}
-              <div className="text-sm font-bold flex items-center gap-1 flex-shrink-0" style={{ color: colors[currentPlayer] }}>
-                <span className="capitalize">{colors[currentPlayer]}</span>
-                <Skull size={12} className={hasKilled[colors[currentPlayer]] ? 'text-red-500' : 'text-gray-300'} />
-              </div>
+      {/* Main Game Area - Mobile: board first, controls at bottom */}
+      <div className="flex flex-col lg:flex-row gap-2 lg:gap-6 items-center lg:items-start w-full max-w-[100vw] overflow-hidden pb-36 lg:pb-0">
 
-              {/* Dice result */}
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl font-bold shadow flex-shrink-0 ${
-                diceResult
-                  ? (diceResult === 4 || diceResult === 8
-                      ? 'bg-gradient-to-br from-green-400 to-emerald-500 text-white'
-                      : 'bg-gradient-to-br from-amber-400 to-orange-500 text-white')
-                  : 'bg-gradient-to-br from-gray-200 to-gray-300 text-gray-400'
-              }`}>
-                {diceResult || '?'}
-              </div>
+        {/* Board - Full width on mobile */}
+        <div className="relative flex-shrink-0 lg:order-1 order-1 w-full lg:w-auto flex justify-center">
+          {/* Minimal border on mobile, decorative on desktop */}
+          <div className="hidden sm:block absolute -inset-4 bg-gradient-to-br from-amber-600 via-amber-800 to-amber-950 rounded-2xl shadow-[0_4px_8px_rgba(0,0,0,0.3)]"></div>
+          <div className="hidden sm:block absolute -inset-3 bg-gradient-to-br from-amber-500 via-amber-700 to-amber-900 rounded-xl"></div>
+          <div className="hidden sm:block absolute -inset-2 bg-gradient-to-br from-amber-600 via-amber-700 to-amber-800 rounded-lg"></div>
 
-              {/* Roll button */}
-              <button
-                onClick={rollDice}
-                disabled={!canRoll || winner || computerPlayers[colors[currentPlayer]] || (onlineMode && colors[currentPlayer] !== myColor)}
-                className={`flex-1 px-2 py-2 rounded-lg font-bold text-white text-sm ${
-                  !canRoll || winner || computerPlayers[colors[currentPlayer]] || (onlineMode && colors[currentPlayer] !== myColor)
-                    ? 'bg-gray-400'
-                    : 'bg-gradient-to-r from-green-500 to-emerald-600 active:scale-95'
-                }`}
-              >
-                {canRoll ? 'ROLL' : 'USE'}
-              </button>
-
-              {/* Stack mode */}
-              <button
-                onClick={() => { setStackMode(!stackMode); if (stackMode) setSelectedCoins([]); }}
-                className={`p-2 rounded-lg flex-shrink-0 ${stackMode ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-600'}`}
-              >
-                <Layers size={16} />
-              </button>
-            </div>
-
-            {/* Rolls row */}
-            <div className="flex gap-1 items-center mt-2 p-1 bg-gray-100 rounded min-h-[28px]">
-              {unusedRolls.length === 0 ? (
-                <span className="text-gray-400 text-xs">Tap ROLL</span>
-              ) : (
-                unusedRolls.map((roll, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handleRollClick(i)}
-                    className={`px-2 py-1 rounded text-xs font-bold ${
-                      selectedRollIndex === i
-                        ? 'bg-blue-500 text-white scale-110'
-                        : roll === 4 || roll === 8
-                          ? 'bg-green-200 text-green-800'
-                          : 'bg-gray-200 text-gray-700'
-                    }`}
-                  >
-                    {roll}
-                  </button>
-                ))
-              )}
-              {selectedCoins.length > 0 && (
-                <div className="ml-auto flex gap-1">
-                  {selectedCoins.length >= 2 && (
-                    <button onClick={formStack} className="px-2 py-1 bg-purple-500 text-white rounded text-xs font-bold">Stack</button>
-                  )}
-                  <button onClick={() => { setSelectedCoins([]); setSelectedRollIndex(null); }} className="px-2 py-1 bg-red-500 text-white rounded text-xs font-bold">X</button>
-                </div>
-              )}
-            </div>
-
-            {/* Message - very compact */}
-            {message && <div className="text-[10px] text-gray-600 text-center mt-1 truncate">{message}</div>}
-          </div>
-
-          {/* Score bar */}
-          <div className="flex justify-around items-center mt-1 bg-white/80 rounded p-1">
-            {colors.map(color => {
-              const inHeaven = gameState[color].filter(c => c.pos === HEAVEN_POS).length;
-              return (
-                <div key={color} className={`flex items-center gap-1 ${colors[currentPlayer] === color ? 'font-bold' : ''}`}>
-                  <div className={`w-3 h-3 rounded-full ${color === 'yellow' ? 'bg-yellow-500' : color === 'green' ? 'bg-green-500' : color === 'blue' ? 'bg-blue-500' : 'bg-red-500'}`}></div>
-                  <span className="text-[10px]">{inHeaven}/4</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Board with 3D decorative frame */}
-        <div className="relative flex-shrink-0">
-          {/* Outer decorative border - smaller on mobile */}
-          <div className="absolute -inset-2 sm:-inset-4 bg-gradient-to-br from-amber-600 via-amber-800 to-amber-950 rounded-xl sm:rounded-2xl shadow-[0_4px_8px_rgba(0,0,0,0.3)]"></div>
-          <div className="absolute -inset-1.5 sm:-inset-3 bg-gradient-to-br from-amber-500 via-amber-700 to-amber-900 rounded-lg sm:rounded-xl"></div>
-          <div className="absolute -inset-1 sm:-inset-2 bg-gradient-to-br from-amber-600 via-amber-700 to-amber-800 rounded-lg"></div>
-
-          {/* Board container */}
-          <div className="relative grid grid-cols-5 gap-0.5 bg-gradient-to-br from-amber-800 via-stone-700 to-amber-900 p-1 sm:p-2 md:p-3 rounded-lg shadow-[inset_0_2px_8px_rgba(0,0,0,0.4)]">
+          {/* Board container - calc width based on viewport */}
+          <div className="relative grid grid-cols-5 gap-[2px] lg:gap-0.5 bg-gradient-to-br from-amber-700 to-amber-900 p-[2px] sm:p-2 md:p-3 rounded-md sm:rounded-lg shadow-[inset_0_2px_8px_rgba(0,0,0,0.4)] w-[calc(100vw-16px)] max-w-[400px] sm:w-auto">
             {Array(5).fill(0).map((_, row) =>
               Array(5).fill(0).map((_, col) => {
                 const coinsHere = getCoinsAtPosition(row, col);
@@ -2012,6 +1967,16 @@ export default function BoardGame() {
                 const innerCircle = isInnerCircleSquare(row, col);
                 const isSafe = isSafeSquare(row, col);
                 const entryArrow = getInnerCircleEntryArrow(row, col);
+
+                // Check if this cell is the destination from mobile coin selection
+                const isDestinationHighlight = (() => {
+                  if (!mobileCoinSelected || mobileDestination === null) return false;
+                  const color = colors[currentPlayer];
+                  const destPos = mobileDestination;
+                  if (destPos < 0 || destPos >= paths[color].length) return false;
+                  const [destRow, destCol] = paths[color][destPos];
+                  return destRow === row && destCol === col;
+                })();
 
                 // Arrow color classes
                 const arrowColorClasses = {
@@ -2055,7 +2020,7 @@ export default function BoardGame() {
                 return (
                   <div
                     key={`${row}-${col}`}
-                    className={`w-[52px] h-[52px] sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-md sm:rounded-lg flex items-center justify-center relative transition-all duration-200 ${
+                    className={`aspect-square w-[calc((100vw-24px)/5)] max-w-[76px] sm:w-16 md:w-20 rounded sm:rounded-lg flex items-center justify-center relative transition-all duration-200 ${
                       heaven
                         ? 'bg-gradient-to-br from-yellow-300 via-amber-400 to-orange-500 shadow-[0_4px_8px_rgba(0,0,0,0.3),inset_0_2px_4px_rgba(255,255,255,0.5),inset_0_-2px_4px_rgba(0,0,0,0.2)] border-2 border-yellow-200'
                         : home && homeColor
@@ -2067,7 +2032,7 @@ export default function BoardGame() {
                               : innerCircle
                                 ? 'bg-gradient-to-br from-orange-200 via-amber-200 to-orange-300 border border-amber-400 shadow-[0_2px_4px_rgba(0,0,0,0.15),inset_0_1px_2px_rgba(255,255,255,0.4)]'
                                 : 'bg-gradient-to-br from-amber-100 via-orange-100 to-amber-200 border border-amber-300 shadow-[0_2px_4px_rgba(0,0,0,0.1),inset_0_1px_2px_rgba(255,255,255,0.3)]'
-                    }`}
+                    } ${isDestinationHighlight ? 'ring-4 ring-green-500 ring-opacity-75 animate-pulse scale-105 z-20' : ''}`}
                   >
                     {/* Decorative corner accents for regular squares */}
                     {!heaven && !home && (
@@ -2161,17 +2126,17 @@ export default function BoardGame() {
                                 key={`stack-${stackColor}-${i}`}
                                 onClick={(e) => handleCoinClick(firstCoin.color, firstCoin.coinIndex, e)}
                                 title={`Stack of ${stackSize} - ${isSafe ? 'at safe zone' : 'moves together'}`}
-                                className={`relative ${colorClasses[stackColor]} rounded-full flex items-center justify-center text-white font-bold border-2 transition-all duration-300 ease-out ${
-                                  useGrid ? 'w-8 h-8' : (stackSize === 2 ? 'w-9 h-9' : stackSize === 3 ? 'w-10 h-10' : 'w-11 h-11')
+                                className={`relative ${colorClasses[stackColor]} rounded-full flex items-center justify-center text-white font-bold border transition-all duration-200 ${
+                                  useGrid ? 'w-5 h-5 sm:w-6 sm:h-6' : 'w-6 h-6 sm:w-7 sm:h-7'
                                 } ${
-                                  isAnySelected ? 'border-white ring-2 ring-white scale-105 shadow-[0_6px_12px_rgba(0,0,0,0.5)]' : 'border-amber-100 ring-2 ring-amber-200'
+                                  isAnySelected ? 'border-white ring-1 ring-white scale-105' : 'border-white/50'
                                 } ${
                                   unusedRolls.length > 0 && stackColor === colors[currentPlayer] && !winner
-                                    ? 'hover:scale-110 hover:shadow-[0_6px_12px_rgba(0,0,0,0.5)] cursor-pointer hover:ring-white'
+                                    ? 'hover:scale-110 cursor-pointer'
                                     : ''
                                 }`}
                               >
-                                <span className={`${useGrid ? 'text-xs' : 'text-sm'} font-bold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] relative z-10`}>x{stackSize}</span>
+                                <span className="text-[9px] sm:text-[10px] font-bold drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">×{stackSize}</span>
                               </button>
                             );
                           } else {
@@ -2185,11 +2150,11 @@ export default function BoardGame() {
                                 key={`${item.type}-${coin.color}-${coin.coinIndex}`}
                                 onClick={(e) => handleCoinClick(coin.color, coin.coinIndex, e)}
                                 title="Shift+click to select for stacking"
-                                className={`${colorClasses[coin.color]} rounded-full ${useGrid ? 'w-8 h-8' : 'w-9 h-9'} flex items-center justify-center text-white font-bold text-xs border-2 transition-all duration-300 ease-out ${
-                                  isSelected ? 'border-white ring-2 ring-white scale-105 shadow-[0_5px_10px_rgba(0,0,0,0.5)]' : 'border-white'
+                                className={`${colorClasses[coin.color]} rounded-full ${useGrid ? 'w-5 h-5 sm:w-6 sm:h-6' : 'w-6 h-6 sm:w-7 sm:h-7'} flex items-center justify-center text-white font-bold text-[9px] sm:text-[10px] border transition-all duration-200 ${
+                                  isSelected ? 'border-white ring-1 ring-white scale-105' : 'border-white/50'
                                 } ${
                                   unusedRolls.length > 0 && coin.color === colors[currentPlayer] && !winner
-                                    ? 'hover:scale-110 hover:shadow-[0_5px_10px_rgba(0,0,0,0.5)] cursor-pointer'
+                                    ? 'hover:scale-110 cursor-pointer'
                                     : ''
                                 }`}
                               >
@@ -2204,6 +2169,178 @@ export default function BoardGame() {
                   </div>
                 );
               })
+            )}
+          </div>
+        </div>
+
+        {/* Mobile Bottom Controls - thumb friendly */}
+        <div className="lg:hidden w-full order-2 fixed bottom-0 left-0 right-0 bg-gradient-to-t from-slate-900 via-slate-800 to-slate-800/95 p-2 pb-3 safe-area-pb z-50">
+          {/* Message */}
+          {message && <div className="text-[10px] text-white/70 text-center mb-1 truncate">{message}</div>}
+
+          {/* Main control row */}
+          <div className="flex items-center gap-2">
+            {/* Turn indicator with scores */}
+            <div className="flex flex-col items-center px-2">
+              <div className="flex items-center gap-1" style={{ color: colors[currentPlayer] }}>
+                <span className="text-xs font-bold capitalize">{colors[currentPlayer]}</span>
+                <Skull size={10} className={hasKilled[colors[currentPlayer]] ? 'text-red-500' : 'text-gray-400'} />
+              </div>
+              <div className="flex gap-1 mt-0.5">
+                {colors.map(color => (
+                  <div key={color} className={`w-2 h-2 rounded-full ${color === 'yellow' ? 'bg-yellow-500' : color === 'green' ? 'bg-green-500' : color === 'blue' ? 'bg-blue-500' : 'bg-red-500'} ${colors[currentPlayer] === color ? 'ring-1 ring-white' : 'opacity-50'}`}>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Rolls display */}
+            <div className="flex gap-1 flex-1 justify-center">
+              {unusedRolls.length === 0 ? (
+                <span className="text-gray-500 text-xs">No rolls</span>
+              ) : (
+                unusedRolls.map((roll, i) => (
+                  <button
+                    key={i}
+                    onClick={() => handleRollClick(i)}
+                    className={`w-8 h-8 rounded-lg text-sm font-bold transition-all ${
+                      selectedRollIndex === i
+                        ? 'bg-blue-500 text-white scale-110 ring-2 ring-blue-300'
+                        : roll === 4 || roll === 8
+                          ? 'bg-green-500/20 text-green-400 border border-green-500'
+                          : 'bg-white/10 text-white border border-white/20'
+                    }`}
+                  >
+                    {roll}
+                  </button>
+                ))
+              )}
+            </div>
+
+            {/* Dice result */}
+            <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl font-bold ${
+              diceResult
+                ? (diceResult === 4 || diceResult === 8 ? 'bg-green-500 text-white' : 'bg-amber-500 text-white')
+                : 'bg-white/10 text-gray-400'
+            }`}>
+              {diceResult || '?'}
+            </div>
+
+            {/* Roll button */}
+            <button
+              onClick={rollDice}
+              disabled={!canRoll || winner || computerPlayers[colors[currentPlayer]] || (onlineMode && colors[currentPlayer] !== myColor)}
+              className={`px-5 py-2.5 rounded-lg font-bold text-white ${
+                !canRoll || winner || computerPlayers[colors[currentPlayer]] || (onlineMode && colors[currentPlayer] !== myColor)
+                  ? 'bg-gray-600'
+                  : 'bg-green-500 active:scale-95 active:bg-green-600'
+              }`}
+            >
+              {canRoll ? 'ROLL' : 'USE'}
+            </button>
+          </div>
+
+          {/* Coin selector panel - shows when roll is selected */}
+          {selectedRollIndex !== null && (
+            <div className="mt-2 bg-white/10 rounded-lg p-2">
+              <div className="flex gap-1.5 justify-center">
+                {[0, 1, 2, 3].map(coinIndex => {
+                  const color = colors[currentPlayer];
+                  const coin = gameState[color][coinIndex];
+                  const isInHeaven = coin.pos === HEAVEN_POS;
+                  const rollValue = unusedRolls[selectedRollIndex];
+                  const isStacked = coin.stacked;
+                  let numCoins = 1;
+                  if (isStacked) {
+                    numCoins = gameState[color].filter((c) => c.stacked && c.pos === coin.pos).length;
+                  }
+                  const destination = getValidDestination(color, coinIndex, rollValue, numCoins);
+                  const hasValidMove = destination !== null && !isInHeaven;
+                  const isSelected = mobileCoinSelected?.coinIndex === coinIndex;
+                  const status = getCoinStatus(color, coinIndex);
+
+                  return (
+                    <button
+                      key={coinIndex}
+                      disabled={!hasValidMove}
+                      onClick={() => {
+                        if (hasValidMove) {
+                          setMobileCoinSelected({ coinIndex, isStack: isStacked, stackSize: numCoins });
+                          setMobileDestination(destination);
+                        }
+                      }}
+                      className={`flex flex-col items-center p-2 rounded-lg transition-all min-w-[60px] ${
+                        isSelected
+                          ? 'bg-blue-500 scale-105'
+                          : hasValidMove
+                            ? 'bg-white/10 active:bg-white/20'
+                            : 'opacity-30'
+                      }`}
+                    >
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm border-2 ${
+                        color === 'yellow' ? 'bg-yellow-500 border-yellow-300' :
+                        color === 'green' ? 'bg-green-500 border-green-300' :
+                        color === 'blue' ? 'bg-blue-500 border-blue-300' : 'bg-red-500 border-red-300'
+                      } ${isStacked ? 'ring-2 ring-purple-400' : ''}`}>
+                        {isStacked ? `×${numCoins}` : coinIndex + 1}
+                      </div>
+                      <span className="text-[9px] text-white/70 mt-1">{status}</span>
+                      {hasValidMove && <span className="text-[8px] text-green-400">→{destination === HEAVEN_POS ? '★' : destination + 1}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+              {/* Action buttons */}
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={() => { setMobileCoinSelected(null); setMobileDestination(null); setSelectedRollIndex(null); }}
+                  className="flex-1 py-2 bg-white/10 text-white/70 rounded-lg text-sm"
+                >
+                  Cancel
+                </button>
+                {mobileCoinSelected && (
+                  <button
+                    onClick={() => {
+                      const color = colors[currentPlayer];
+                      if (mobileCoinSelected.isStack) {
+                        const stackedIndices = gameState[color]
+                          .map((c, i) => ({ ...c, idx: i }))
+                          .filter(c => c.stacked && c.pos === gameState[color][mobileCoinSelected.coinIndex].pos)
+                          .map(c => c.idx);
+                        setSelectedCoins(stackedIndices);
+                        setTimeout(() => {
+                          const coin = gameState[color][mobileCoinSelected.coinIndex];
+                          handleCoinClick(color, mobileCoinSelected.coinIndex, { pos: coin.pos, stacked: coin.stacked });
+                          setMobileCoinSelected(null);
+                          setMobileDestination(null);
+                        }, 50);
+                      } else {
+                        handleCoinClick(color, mobileCoinSelected.coinIndex, gameState[color][mobileCoinSelected.coinIndex]);
+                        setMobileCoinSelected(null);
+                        setMobileDestination(null);
+                      }
+                    }}
+                    className="flex-[2] py-2 bg-green-500 text-white font-bold rounded-lg active:scale-95"
+                  >
+                    Move Coin {mobileCoinSelected.coinIndex + 1}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Stack mode toggle */}
+          <div className="flex justify-center mt-2 gap-2">
+            <button
+              onClick={() => { setStackMode(!stackMode); if (stackMode) setSelectedCoins([]); }}
+              className={`px-3 py-1 rounded text-xs ${stackMode ? 'bg-purple-600 text-white' : 'bg-white/10 text-white/50'}`}
+            >
+              <Layers size={12} className="inline mr-1" />Stack
+            </button>
+            {selectedCoins.length >= 2 && (
+              <button onClick={formStack} className="px-3 py-1 bg-purple-500 text-white rounded text-xs font-bold">
+                Stack {selectedCoins.length}
+              </button>
             )}
           </div>
         </div>
