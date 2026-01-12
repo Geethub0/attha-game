@@ -90,6 +90,14 @@ export default function BoardGame() {
     red: false
   });
 
+  // Track if each player has ever started (moved first coin out) - only need 1,4,8 once per game
+  const [hasStarted, setHasStarted] = useState({
+    yellow: false,
+    green: false,
+    blue: false,
+    red: false
+  });
+
   const [diceResult, setDiceResult] = useState(null);
   const [message, setMessage] = useState('');
   const [winner, setWinner] = useState(null);
@@ -138,6 +146,7 @@ export default function BoardGame() {
       red: [{ pos: -1, id: 0, stacked: false, innerMoves: 0 }, { pos: -1, id: 1, stacked: false, innerMoves: 0 }, { pos: -1, id: 2, stacked: false, innerMoves: 0 }, { pos: -1, id: 3, stacked: false, innerMoves: 0 }]
     });
     setHasKilled({ yellow: false, green: false, blue: false, red: false });
+    setHasStarted({ yellow: false, green: false, blue: false, red: false });
     setDiceResult(null);
     setWinner(null);
     setSelectedCoins([]);
@@ -153,6 +162,7 @@ export default function BoardGame() {
     const currentState = {
       gameState: JSON.parse(JSON.stringify(gameState)),
       hasKilled: { ...hasKilled },
+      hasStarted: { ...hasStarted },
       currentPlayer,
       unusedRolls: [...unusedRolls],
       canRoll,
@@ -180,6 +190,7 @@ export default function BoardGame() {
     const lastState = undoHistory[undoHistory.length - 1];
     setGameState(lastState.gameState);
     setHasKilled(lastState.hasKilled);
+    setHasStarted(lastState.hasStarted || { yellow: false, green: false, blue: false, red: false });
     setCurrentPlayer(lastState.currentPlayer);
     setUnusedRolls(lastState.unusedRolls);
     setCanRoll(lastState.canRoll);
@@ -200,6 +211,7 @@ export default function BoardGame() {
       timestamp: new Date().toISOString(),
       gameState,
       hasKilled,
+      hasStarted,
       currentPlayer,
       colors,
       playerCount,
@@ -237,6 +249,7 @@ export default function BoardGame() {
 
       setGameState(saveData.gameState);
       setHasKilled(saveData.hasKilled || { yellow: false, green: false, blue: false, red: false });
+      setHasStarted(saveData.hasStarted || { yellow: false, green: false, blue: false, red: false });
       setCurrentPlayer(saveData.currentPlayer || 0);
       setColors(saveData.colors || ['yellow', 'blue']);
       setPlayerCount(saveData.playerCount || 2);
@@ -343,19 +356,22 @@ export default function BoardGame() {
     setMyColor('yellow'); // Host is always yellow
 
     const newPeer = new Peer(`attha-${code}`, {
-      debug: 1
+      debug: 2
     });
 
     newPeer.on('open', (id) => {
+      console.log('Host peer opened with ID:', id);
       setConnectionStatus('waiting');
       setMessage('Waiting for opponent to join...');
     });
 
     newPeer.on('connection', (conn) => {
+      console.log('Guest is connecting...');
       connectionRef.current = conn;
       setConnection(conn);
 
       conn.on('open', () => {
+        console.log('Connection opened with guest!');
         setConnectionStatus('connected');
         setMessage('Opponent connected! Starting game...');
 
@@ -415,12 +431,26 @@ export default function BoardGame() {
 
     const newPeer = new Peer();
 
+    // Set a timeout for connection
+    const connectionTimeout = setTimeout(() => {
+      if (connectionStatus === 'connecting') {
+        setConnectionStatus('disconnected');
+        setMessage('Connection timed out. Check the code and try again.');
+        newPeer.destroy();
+      }
+    }, 15000); // 15 second timeout
+
     newPeer.on('open', () => {
-      const conn = newPeer.connect(`attha-${joinCode.toUpperCase()}`);
+      console.log('Guest peer opened, connecting to host...');
+      const conn = newPeer.connect(`attha-${joinCode.toUpperCase()}`, {
+        reliable: true
+      });
       connectionRef.current = conn;
       setConnection(conn);
 
       conn.on('open', () => {
+        clearTimeout(connectionTimeout);
+        console.log('Connection opened to host!');
         setConnectionStatus('connected');
         setOnlineMode(true);
         setMessage('Connected! Waiting for game to start...');
@@ -428,13 +458,22 @@ export default function BoardGame() {
 
       conn.on('data', handlePeerMessage);
 
+      conn.on('error', (err) => {
+        clearTimeout(connectionTimeout);
+        console.error('Connection error:', err);
+        setConnectionStatus('disconnected');
+        setMessage('Connection error. Try again.');
+      });
+
       conn.on('close', () => {
+        clearTimeout(connectionTimeout);
         setConnectionStatus('disconnected');
         setMessage('Host disconnected!');
       });
     });
 
     newPeer.on('error', (err) => {
+      clearTimeout(connectionTimeout);
       console.error('Peer error:', err);
       setConnectionStatus('disconnected');
       if (err.type === 'peer-unavailable') {
@@ -503,7 +542,6 @@ export default function BoardGame() {
   // Used to determine if recircling should be allowed
   const canAnyNonInnerCoinUseRoll = (color, rollValue, killed) => {
     const playerCoins = gameState[color];
-    const hasAnyOnBoard = playerCoins.some(c => c.pos >= 0 && c.pos < HEAVEN_POS);
 
     for (const coin of playerCoins) {
       if (coin.pos === HEAVEN_POS) continue; // Skip coins in heaven
@@ -511,9 +549,8 @@ export default function BoardGame() {
 
       // Check if coin at home can leave with this roll
       if (coin.pos === -1) {
-        // First coin needs 1, 4, or 8
-        if (!hasAnyOnBoard && ![1, 4, 8].includes(rollValue)) continue;
-        // Any roll works if there's already a coin on board
+        // First move of game needs 1,4,8. After that any roll works.
+        if (!hasStarted[color] && ![1, 4, 8].includes(rollValue)) continue;
         const newPos = rollValue - 1;
         // Check if landing position is valid (not entering inner without kill)
         if (newPos < INNER_CIRCLE_START || killed) {
@@ -556,50 +593,97 @@ export default function BoardGame() {
     if (rolls.length === 0) return false;
 
     const playerCoins = gameState[color];
-    const hasAnyOnBoard = playerCoins.some(c => c.pos >= 0 && c.pos < HEAVEN_POS);
-    const canLeaveHome = hasAnyOnBoard || rolls.some(r => [1, 4, 8].includes(r));
+
+    // Group coins by position to handle stacks
+    const coinsByPos = {};
+    playerCoins.forEach((coin, idx) => {
+      if (coin.pos === HEAVEN_POS) return; // Skip coins in heaven
+      const key = coin.pos;
+      if (!coinsByPos[key]) coinsByPos[key] = [];
+      coinsByPos[key].push({ ...coin, coinIndex: idx });
+    });
 
     // First pass: check for non-recircle moves (these have priority)
-    for (const coin of playerCoins) {
-      if (coin.pos === HEAVEN_POS) continue; // Skip coins in heaven
+    for (const posKey of Object.keys(coinsByPos)) {
+      const coinsAtPos = coinsByPos[posKey];
+      const pos = parseInt(posKey);
 
-      // Check if coin at home can leave
-      if (coin.pos === -1) {
-        if (canLeaveHome) {
-          for (const roll of rolls) {
-            const newPos = roll - 1;
-            if (newPos <= HEAVEN_POS && (newPos < INNER_CIRCLE_START || killed)) {
+      // Check stacked coins
+      const stackedCoins = coinsAtPos.filter(c => c.stacked);
+      const unstackedCoins = coinsAtPos.filter(c => !c.stacked);
+
+      // For stacked coins, roll must divide evenly by stack size
+      if (stackedCoins.length > 1) {
+        const stackSize = stackedCoins.length;
+        for (const roll of rolls) {
+          if (roll % stackSize !== 0) continue; // Roll doesn't divide evenly
+          const blocksToMove = roll / stackSize;
+          let newPos = pos + blocksToMove;
+
+          if (pos === -1) {
+            // Leaving home
+            if (hasStarted[color] || [1, 4, 8].includes(roll)) {
+              newPos = blocksToMove - 1;
+              if (newPos <= HEAVEN_POS && (newPos < INNER_CIRCLE_START || killed)) {
+                return true;
+              }
+            }
+          } else if (newPos <= HEAVEN_POS) {
+            const wasInOuter = pos < INNER_CIRCLE_START;
+            const enteringInnerOrHeaven = newPos >= INNER_CIRCLE_START;
+            if (!(wasInOuter && enteringInnerOrHeaven && !killed)) {
               return true;
             }
           }
         }
-        continue;
       }
 
-      // Check if coin on board can move with any roll
-      for (const roll of rolls) {
-        let newPos = coin.pos + roll;
-
-        if (newPos > HEAVEN_POS) continue; // Can't overshoot heaven (recircle checked separately)
-
-        // Inner circle restriction: if moving from outer to inner/heaven, need kill
-        const wasInOuter = coin.pos < INNER_CIRCLE_START;
-        const enteringInnerOrHeaven = newPos >= INNER_CIRCLE_START;
-        if (wasInOuter && enteringInnerOrHeaven && !killed) continue;
-        return true;
+      // For unstacked coins, any roll works (single coin)
+      for (const coin of unstackedCoins) {
+        if (coin.pos === -1) {
+          // Check if coin at home can leave
+          for (const roll of rolls) {
+            if (hasStarted[color] || [1, 4, 8].includes(roll)) {
+              const newPos = roll - 1;
+              if (newPos <= HEAVEN_POS && (newPos < INNER_CIRCLE_START || killed)) {
+                return true;
+              }
+            }
+          }
+        } else {
+          // Check if coin on board can move with any roll
+          for (const roll of rolls) {
+            let newPos = coin.pos + roll;
+            if (newPos > HEAVEN_POS) continue;
+            const wasInOuter = coin.pos < INNER_CIRCLE_START;
+            const enteringInnerOrHeaven = newPos >= INNER_CIRCLE_START;
+            if (wasInOuter && enteringInnerOrHeaven && !killed) continue;
+            return true;
+          }
+        }
       }
     }
 
     // Second pass: check for recircle moves (only if no normal moves available)
     for (const roll of rolls) {
-      // Check if any inner circle coin can recircle with this roll
-      for (const coin of playerCoins) {
-        if (!isInnerCircle(coin.pos)) continue;
+      for (const posKey of Object.keys(coinsByPos)) {
+        const coinsAtPos = coinsByPos[posKey];
+        const pos = parseInt(posKey);
+        if (!isInnerCircle(pos)) continue;
 
-        const newPos = coin.pos + roll;
-        if (newPos > HEAVEN_POS) {
-          // This would be a recircle - it's valid since no normal moves exist
-          return true;
+        // Check stacked coins
+        const stackedCoins = coinsAtPos.filter(c => c.stacked);
+        if (stackedCoins.length > 1) {
+          if (roll % stackedCoins.length === 0) {
+            const blocksToMove = roll / stackedCoins.length;
+            if (pos + blocksToMove > HEAVEN_POS) return true;
+          }
+        }
+
+        // Check unstacked coins
+        const unstackedCoins = coinsAtPos.filter(c => !c.stacked);
+        for (const coin of unstackedCoins) {
+          if (coin.pos + roll > HEAVEN_POS) return true;
         }
       }
     }
@@ -894,12 +978,15 @@ export default function BoardGame() {
 
     // Leaving home
     if (currentPos === -1) {
-      const hasAnyOnBoard = gameState[color].some(c => c.pos >= 0 && c.pos < HEAVEN_POS);
-
-      // First coin needs 1, 4, or 8 in the unused rolls
-      if (!hasAnyOnBoard && ![1, 4, 8].includes(rollValue)) {
-        setMessage('Need a roll of 1, 4, or 8 for first coin!');
+      // First move of the game needs 1, 4, or 8. After that, any roll works forever.
+      if (!hasStarted[color] && ![1, 4, 8].includes(rollValue)) {
+        setMessage('Need a roll of 1, 4, or 8 to start!');
         return;
+      }
+
+      // Mark that this player has started (first coin ever left home)
+      if (!hasStarted[color]) {
+        setHasStarted(prev => ({ ...prev, [color]: true }));
       }
 
       newPos = blocksToMove - 1;
@@ -1137,8 +1224,8 @@ export default function BoardGame() {
       .map((c, idx) => ({ ...c, coinIndex: idx }))
       .filter(c => c.pos === coinPos && c.pos !== HEAVEN_POS); // Exclude coins in heaven
 
-    // Check if coins are stacked (marked as stacked and at same position)
-    const isStacked = coinsAtSamePos.length > 1 && coinsAtSamePos.some(c => c.stacked);
+    // Check if THE CLICKED COIN is stacked (not just any coin at this position)
+    const clickedCoinIsStacked = coin.stacked;
 
     // If no roll selected, prompt user
     if (selectedRollIndex === null) {
@@ -1146,8 +1233,8 @@ export default function BoardGame() {
       return;
     }
 
-    // If stacked, must move together (regardless of safe zone - stack only breaks when LANDING on safe zone)
-    if (isStacked) {
+    // If the clicked coin is stacked, must move all stacked coins together
+    if (clickedCoinIsStacked) {
       const stackedIndices = coinsAtSamePos.filter(c => c.stacked).map(c => c.coinIndex);
       if (stackedIndices.length > 1) {
         moveCoins(stackedIndices);
@@ -1293,7 +1380,6 @@ export default function BoardGame() {
     let bestScore = -Infinity;
 
     const playerCoins = state[color];
-    const hasAnyOnBoard = playerCoins.some(c => c.pos >= 0 && c.pos < HEAVEN_POS);
 
     for (let rollIdx = 0; rollIdx < rolls.length; rollIdx++) {
       const rollValue = rolls[rollIdx];
@@ -1308,8 +1394,9 @@ export default function BoardGame() {
         let newPos;
 
         // Check if coin can leave home
+        // First move of game needs 1,4,8. After that any roll works.
         if (currentPos === -1) {
-          if (!hasAnyOnBoard && ![1, 4, 8].includes(rollValue)) continue;
+          if (!hasStarted[color] && ![1, 4, 8].includes(rollValue)) continue;
           newPos = rollValue - 1;
         } else {
           newPos = currentPos + rollValue;
@@ -1355,6 +1442,8 @@ export default function BoardGame() {
     if (canRoll && unusedRolls.length === 0) {
       setTimeout(() => {
         rollDice();
+        // Reset thinking so useEffect can re-trigger after roll
+        setIsComputerThinking(false);
       }, 300);
       return;
     }
@@ -1388,6 +1477,7 @@ export default function BoardGame() {
         if (canRoll) {
           setTimeout(() => {
             rollDice();
+            setIsComputerThinking(false);
           }, 300);
         } else {
           // No valid moves and can't roll - pass turn
