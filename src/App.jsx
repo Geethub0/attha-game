@@ -1355,7 +1355,7 @@ export default function BoardGame() {
     if (canRoll && unusedRolls.length === 0) {
       setTimeout(() => {
         rollDice();
-      }, 800);
+      }, 300);
       return;
     }
 
@@ -1381,14 +1381,14 @@ export default function BoardGame() {
               moveCoins([bestMove.coinIndex]);
             }
             setIsComputerThinking(false);
-          }, 500);
-        }, 600);
+          }, 200);
+        }, 200);
       } else {
         // No valid move, but might be able to roll again
         if (canRoll) {
           setTimeout(() => {
             rollDice();
-          }, 800);
+          }, 300);
         } else {
           setIsComputerThinking(false);
         }
@@ -1404,7 +1404,7 @@ export default function BoardGame() {
     if (computerPlayers[color] && !isComputerThinking) {
       const timer = setTimeout(() => {
         computerTakeTurn();
-      }, 1000);
+      }, 400);
       return () => clearTimeout(timer);
     }
   }, [currentPlayer, computerPlayers, canRoll, unusedRolls, winner, isComputerThinking, playerCount, colors]);
