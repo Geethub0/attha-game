@@ -349,15 +349,19 @@ export default function BoardGame() {
 
   // Create an online game room (host)
   const createOnlineGame = () => {
+    console.log('Creating online game...');
     const code = generateRoomCode();
+    console.log('Generated room code:', code);
     setRoomCode(code);
     setIsHost(true);
     setConnectionStatus('connecting');
     setMyColor('yellow'); // Host is always yellow
 
-    const newPeer = new Peer(`attha-${code}`, {
-      debug: 2
-    });
+    try {
+      const newPeer = new Peer(`attha-${code}`, {
+        debug: 2
+      });
+      console.log('Peer object created');
 
     newPeer.on('open', (id) => {
       console.log('Host peer opened with ID:', id);
@@ -416,20 +420,29 @@ export default function BoardGame() {
     });
 
     setPeer(newPeer);
+    } catch (error) {
+      console.error('Error creating peer:', error);
+      setConnectionStatus('disconnected');
+      setMessage('Failed to create connection. Try again.');
+    }
   };
 
   // Join an online game room (guest)
   const joinOnlineGame = () => {
+    console.log('Joining online game...');
     if (!joinCode.trim()) {
       setMessage('Please enter a room code!');
       return;
     }
+    console.log('Join code:', joinCode);
 
     setConnectionStatus('connecting');
     setIsHost(false);
     setMyColor('blue'); // Guest is always blue
 
-    const newPeer = new Peer();
+    try {
+      const newPeer = new Peer();
+      console.log('Guest peer object created');
 
     // Set a timeout for connection
     const connectionTimeout = setTimeout(() => {
@@ -484,6 +497,11 @@ export default function BoardGame() {
     });
 
     setPeer(newPeer);
+    } catch (error) {
+      console.error('Error creating guest peer:', error);
+      setConnectionStatus('disconnected');
+      setMessage('Failed to create connection. Try again.');
+    }
   };
 
   // Cleanup peer connection on unmount
